@@ -2,10 +2,25 @@ const dummy = () => 1
 
 const totalLikes = blogs => blogs.reduce((acc, curr) => acc+=curr.likes, 0)
 
-const favoriteBlog = blogs => blogs.reduce((acc, curr) => curr.likes > acc.likes ? curr : acc)
+const favoriteBlog = blogs => blogs
+  .map(({ title, author, likes }) => ({ title, author, likes }))
+  .reduce((acc, curr) => curr.likes > acc.likes ? curr : acc)
+
+const mostBlogs = blogs => {
+  const blogsCount = blogs
+    .reduce((acc, curr) => {
+      acc[curr.author] ? acc[curr.author]++ : acc[curr.author] = 1
+      return acc
+    }, {})
+  const authorArr = Object.entries(blogsCount)
+    .reduce((acc, curr) => curr[1] > acc[1] ? curr : acc)
+  return { author: authorArr[0],
+    blogs: authorArr[1] }
+}
 
 module.exports = {
   dummy,
   totalLikes,
-  favoriteBlog
+  favoriteBlog,
+  mostBlogs
 }
