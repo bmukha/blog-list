@@ -46,6 +46,17 @@ test('new post is successfully created', async () => {
   expect(response.body.length).toBe(helper.blogs.length + 1)
 }, 10000000)
 
+const newTestBlogWithoutLikes = {
+  title: 'New Test Blog without likes',
+  author: 'Bohdan Mukha',
+  url: 'http://github.com/bmukha',
+}
+
+test('new post without likes defaults likes to 0', async () => {
+  const response = await api.post('/api/blogs', newTestBlogWithoutLikes)
+  expect(response.body.likes).toBe(0)
+}, 10000000)
+
 
 afterAll(async () => {
   await mongoose.connection.close()
