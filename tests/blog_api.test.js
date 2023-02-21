@@ -33,6 +33,20 @@ test('id property is defined', async () => {
   expect(response.body[0].id).toBeDefined()
 }, 10000000)
 
+const newTestBlog = {
+  title: 'New Test Blog',
+  author: 'Bohdan Mukha',
+  url: 'http://github.com/bmukha',
+  likes: 777
+}
+
+test('new post is successfully created', async () => {
+  await api.post('/api/blogs', newTestBlog)
+  const response = await api.get('/api/blogs', newTestBlog)
+  expect(response.body.length).toBe(helper.blogs.length + 1)
+}, 10000000)
+
+
 afterAll(async () => {
   await mongoose.connection.close()
 })
