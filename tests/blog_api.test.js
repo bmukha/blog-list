@@ -8,85 +8,102 @@ const Blog = require('../models/blog')
 
 beforeEach(async () => {
   await Blog.deleteMany({})
+  await Blog.insertMany(helper.blogs)
+})
 
-  const blogObjects = helper.blogs
-    .map(blog => new Blog(blog))
-  const promiseArray = blogObjects.map(blog => blog.save())
-  await Promise.all(promiseArray)
-}, 2000)
+describe('when there is initially some blogs saved', () => {
+  test('blogs are returned as json', async () => {
+    await api
+      .get('/api/blogs')
+      .expect(200)
+      .expect('Content-Type', /application\/json/)
+  })
 
-test('blogs are returned as json', async () => {
-  await api
-    .get('/api/blogs')
-    .expect(200)
-    .expect('Content-Type', /application\/json/)
-}, 2000)
+  test('all blogs are returned', async () => {
+    const response = await api.get('/api/blogs')
+    expect(response.body).toHaveLength(helper.blogs.length)
+  })
 
-test('all blogs are returned', async () => {
-  const response = await api.get('/api/blogs')
+  test('id property is defined', async () => {
+    const response = await api.get('/api/blogs')
+    expect(response.body[0].id).toBeDefined()
+  })
+})
 
-  expect(response.body).toHaveLength(helper.blogs.length)
-}, 2000)
+describe('addition of new blog', () => {
+  test('succeeds with valid data', async () => {
+    const newTestBlog = {
+      title: 'New Test Blog',
+      author: 'Bohdan Mukha',
+      url: 'http://github.com/bmukha',
+      likes: 777
+    }
+    await api
+      .post('/api/blogs')
+      .send(newTestBlog)
+      .expect(201)
+      .expect('Content-Type', /application\/json/)
 
-test('id property is defined', async () => {
-  const response = await api.get('/api/blogs')
-  expect(response.body[0].id).toBeDefined()
-}, 2000)
+    const response = await api.get('/api/blogs')
+    expect(response.body).toHaveLength(helper.blogs.length + 1)
+  })
 
-test('new blog is successfully created', async () => {
+  test('defaults likes to 0 if likes property is not provided', async () => {
+    const newTestBlogWithoutLikes = {
+      title: 'New Test Blog without likes',
+      author: 'Bohdan Mukha',
+      url: 'http://github.com/bmukha',
+    }
+    const response = await api
+      .post('/api/blogs')
+      .send(newTestBlogWithoutLikes)
 
-  const newTestBlog = {
-    title: 'New Test Blog',
-    author: 'Bohdan Mukha',
-    url: 'http://github.com/bmukha',
-    likes: 777
-  }
-  await api
-    .post('/api/blogs')
-    .send(newTestBlog)
-    .expect(201)
-    .expect('Content-Type', /application\/json/)
+    expect(response.body.likes).toBe(0)
+  })
 
-  const response = await api.get('/api/blogs')
-  expect(response.body).toHaveLength(helper.blogs.length + 1)
-}, 5000)
+  test('results in error 400 Bad Request if title is not provided', async () => {
+    const newTestBlogWithoutTitle = {
+      author: 'Bohdan Mukha',
+      url: 'http://github.com/bmukha',
+    }
+    const response = await api
+      .post('/api/blogs')
+      .send(newTestBlogWithoutTitle)
+    expect(response.status).toBe(400)
+  })
 
+  test('results in error 400 Bad Request if url is not provided', async () => {
+    const newTestBlogWithoutTitle = {
+      title: 'Some title',
+      author: 'Bohdan Mukha',
+    }
+    const response = await api
+      .post('/api/blogs')
+      .send(newTestBlogWithoutTitle)
+    expect(response.status).toBe(400)
+  })
+})
 
-test('new post without likes defaults likes to 0', async () => {
-  const newTestBlogWithoutLikes = {
-    title: 'New Test Blog without likes',
-    author: 'Bohdan Mukha',
-    url: 'http://github.com/bmukha',
-  }
-  const response = await api
-    .post('/api/blogs')
-    .send(newTestBlogWithoutLikes)
+describe('deletion of a blog', () => {
+  test('succeeds with status code 204 if id is valid', async () => {
+    const blogsAtStart = await helper.blogsInDb()
+    const blogToDelete = blogsAtStart[0]
 
-  expect(response.body.likes).toBe(0)
-}, 2000)
+    await api
+      .delete(`/api/blogs/${blogToDelete.id}`)
+      .expect(204)
 
+    const blogsAtEnd = await helper.blogsInDb()
 
-test('new post without title results in error 400 Bad Request', async () => {
-  const newTestBlogWithoutTitle = {
-    author: 'Bohdan Mukha',
-    url: 'http://github.com/bmukha',
-  }
-  const response = await api
-    .post('/api/blogs')
-    .send(newTestBlogWithoutTitle)
-  expect(response.status).toBe(400)
-}, 2000)
+    expect(blogsAtEnd).toHaveLength(
+      helper.blogs.length - 1
+    )
 
-test('new post without url results in error 400 Bad Request', async () => {
-  const newTestBlogWithoutTitle = {
-    title: 'Some title',
-    author: 'Bohdan Mukha',
-  }
-  const response = await api
-    .post('/api/blogs')
-    .send(newTestBlogWithoutTitle)
-  expect(response.status).toBe(400)
-}, 2000)
+    const titles = blogsAtEnd.map(r => r.title)
+
+    expect(titles).not.toContain(blogToDelete.title)
+  })
+})
 
 afterAll(async () => {
   await mongoose.connection.close()
