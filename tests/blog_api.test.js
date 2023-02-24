@@ -105,6 +105,26 @@ describe('deletion of a blog', () => {
   })
 })
 
+describe('updating of a blog', () => {
+  test('succeeds if id is valid', async () => {
+    const blogsAtStart = await helper.blogsInDb()
+    const blogToUpdate = blogsAtStart[0]
+
+    const updatedInfo = {
+      title: 'NOT My First Blog',
+      author: 'Myself',
+      url: 'http://localhost:3003/api/blogs',
+      likes: 26
+    }
+
+    const response = await api
+      .put(`/api/blogs/${blogToUpdate.id}`)
+      .send(updatedInfo)
+      .expect(200)
+    expect(response.body.title).toBe('NOT My First Blog')
+  })
+})
+
 afterAll(async () => {
   await mongoose.connection.close()
 })
