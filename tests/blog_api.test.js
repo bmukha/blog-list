@@ -3,12 +3,24 @@ const mongoose = require('mongoose')
 const helper = require('../utils/list_helper')
 const app = require('../app')
 const api = supertest(app)
-
+const jwt = require('jsonwebtoken')
 const Blog = require('../models/blog')
+
+const userForToken = {
+  username: 'root',
+  id: '63fb8c8d62b737d9a0b45c0a'
+}
+
+const token = jwt.sign(userForToken, process.env.SECRET)
 
 beforeEach(async () => {
   await Blog.deleteMany({})
-  await Blog.insertMany(helper.blogs)
+  const blogsWithUser = helper.blogs.map(blog => {
+    return {
+      ...blog, user: userForToken.id
+    }
+  })
+  await Blog.insertMany(blogsWithUser)
 })
 
 describe('when there is initially some blogs saved', () => {
@@ -40,6 +52,7 @@ describe('addition of new blog', () => {
     }
     await api
       .post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
       .send(newTestBlog)
       .expect(201)
       .expect('Content-Type', /application\/json/)
@@ -56,6 +69,7 @@ describe('addition of new blog', () => {
     }
     const response = await api
       .post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
       .send(newTestBlogWithoutLikes)
 
     expect(response.body.likes).toBe(0)
@@ -68,6 +82,7 @@ describe('addition of new blog', () => {
     }
     const response = await api
       .post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
       .send(newTestBlogWithoutTitle)
     expect(response.status).toBe(400)
   })
@@ -79,8 +94,22 @@ describe('addition of new blog', () => {
     }
     const response = await api
       .post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
       .send(newTestBlogWithoutTitle)
     expect(response.status).toBe(400)
+  })
+
+  test('fails with the status code 401 Unauthorized if a token is not provided', async () => {
+    const newTestBlog = {
+      title: 'New Test Blog',
+      author: 'Bohdan Mukha',
+      url: 'http://github.com/bmukha',
+      likes: 777
+    }
+    await api
+      .post('/api/blogs')
+      .send(newTestBlog)
+      .expect(401)
   })
 })
 
@@ -91,6 +120,7 @@ describe('deletion of a blog', () => {
 
     await api
       .delete(`/api/blogs/${blogToDelete.id}`)
+      .set('Authorization', `Bearer ${token}`)
       .expect(204)
 
     const blogsAtEnd = await helper.blogsInDb()
@@ -119,6 +149,7 @@ describe('updating of a blog', () => {
 
     const response = await api
       .put(`/api/blogs/${blogToUpdate.id}`)
+      .set('Authorization', `Bearer ${token}`)
       .send(updatedInfo)
       .expect(200)
     expect(response.body.title).toBe('NOT My First Blog')
