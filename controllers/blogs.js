@@ -1,19 +1,22 @@
 const blogsRouter = require('express').Router()
 const Blog = require('../models/blog')
 const User = require('../models/user')
+const jwt = require('jsonwebtoken')
+
+const userExtractor = async (request, response, next) => {
+  const { token } = request
+  const decodedToken = jwt.verify(token, process.env.SECRET)
+  request.user = decodedToken.id
+  next()
+}
 
 blogsRouter.get('/', async (request, response) => {
   const blogs = await Blog.find({}).populate('user', { username: 1, name: 1 })
   response.json(blogs)
 })
 
-blogsRouter.post('/', async (request, response) => {
+blogsRouter.post('/', userExtractor, async (request, response) => {
   const { user: userId } = request
-
-  if(!userId) {
-    return response.status(401).json({ error: 'user not found' })
-  }
-
   const { title, author, url, likes } = request.body
   const user = await User.findById(userId)
   const blog = await new Blog({
@@ -21,7 +24,7 @@ blogsRouter.post('/', async (request, response) => {
     author,
     url,
     likes,
-    user: user._id,
+    user: userId,
   }).save()
 
   user.blogs = [...user.blogs, blog._id]
@@ -30,26 +33,19 @@ blogsRouter.post('/', async (request, response) => {
   response.status(201).json(blog)
 })
 
-blogsRouter.delete('/:id', async (request, response) => {
+blogsRouter.delete('/:id', userExtractor, async (request, response) => {
   const { id } = request.params
   const { user: userId } = request
-
-
   const blog = await Blog.findById(id)
 
   if(!blog) {
     return response.status(404).end()
   }
 
-  if(!userId) {
-    return response.status(401).json({ error: 'user not found' })
-  }
-
   const user = await User.findById(userId)
 
   if ( blog.user.toString() !== user.id.toString() ) {
-    return response.status(401).json({ error: 'wrong user!' })
-
+    return response.status(401).json({ error: 'permission denied' })
   }
   await blog.remove()
   response.status(204).end()

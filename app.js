@@ -23,7 +23,6 @@ mongoose.connect(config.MONGODB_URI)
   })
 
 app.use(middleware.tokenExtractor)
-app.use(middleware.userExtractor, blogsRouter)
 app.use(cors())
 app.use(express.static('build'))
 app.use(express.json())
